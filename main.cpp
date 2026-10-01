@@ -2,6 +2,7 @@
 #include <X11/keysym.h>
 #include <iostream>
 #include <cmath>
+#include <unistd.h>
 
 using namespace std;
 
@@ -62,6 +63,19 @@ Point3D rotate_y(Point3D p, double angle)
     rotated.x = p.x * cos(radians) - p.z * sin(radians);
     rotated.y = p.y;
     rotated.z = p.x * sin(radians) + p.z * cos(radians);
+
+    return rotated;
+}
+
+Point3D rotate_z(Point3D p, double angle)
+{
+    double radians = angle * M_PI / 180.0;
+
+    Point3D rotated;
+
+    rotated.x = p.x * cos(radians) - p.y * sin(radians);
+    rotated.y = p.x * sin(radians) + p.y * cos(radians);
+    rotated.z = p.z;
 
     return rotated;
 }
@@ -181,134 +195,138 @@ int main()
 
     bool running = true;
     double headAngle = 0.0;
+    double shapeAngle = 0.0;
 
     while (running)
     {
-        XEvent event;
-
-        XNextEvent(display, &event);
-
-        if (event.type == Expose)
+        // Process any keyboard/window events that are waiting.
+        while (XPending(display) > 0)
         {
-            Point3D xStart = {-10, 0, 0};
-            Point3D xEnd   = {10, 0, 0};
+            XEvent event;
+            XNextEvent(display, &event);
 
-            Point3D yStart = {0, -10, 0};
-            Point3D yEnd   = {0, 10, 0};
-
-            Point3D zStart = {0, 0, -10};
-            Point3D zEnd   = {0, 0, 10};
-
-            Point2D xs = project_point(xStart, headAngle);
-            Point2D xe = project_point(xEnd, headAngle);
-
-            Point2D ys = project_point(yStart, headAngle);
-            Point2D ye = project_point(yEnd, headAngle);
-
-            Point2D zs = project_point(zStart, headAngle);
-            Point2D ze = project_point(zEnd, headAngle);
-
-            if (xs.visible && xe.visible)
+            if (event.type == KeyPress)
             {
-                XDrawLine(display, window, gc, xs.x, xs.y, xe.x, xe.y);
-            }
+                KeySym key = XLookupKeysym(&event.xkey, 0);
 
-            if (ys.visible && ye.visible)
-            {
-                XDrawLine(display, window, gc, ys.x, ys.y, ye.x, ye.y);
-            }
-
-            if (zs.visible && ze.visible)
-            {
-                XDrawLine(display, window, gc, zs.x, zs.y, ze.x, ze.y);
-            }
-
-            Point2D projectedCube[CUBE_POINT_COUNT];
-
-            for (int i = 0; i < CUBE_POINT_COUNT; i++)
-            {
-                projectedCube[i] = project_point(cube[i], headAngle);
-            }
-
-            for (int i = 0; i < CUBE_EDGE_COUNT; i++)
-            {
-                int start = cubeEdges[i][0];
-                int end = cubeEdges[i][1];
-
-                if (projectedCube[start].visible &&
-                    projectedCube[end].visible)
+                if (key == XK_Escape)
                 {
-                    XDrawLine(
-                        display,
-                        window,
-                        gc,
-                        projectedCube[start].x,
-                        projectedCube[start].y,
-                        projectedCube[end].x,
-                        projectedCube[end].y
-                    );
+                    running = false;
+                }
+                else if (key == XK_Left)
+                {
+                    // Left arrow turns the viewer's head to the right.
+                    headAngle -= 5.0;
+                }
+                else if (key == XK_Right)
+                {
+                    // Right arrow turns the viewer's head to the left.
+                    headAngle += 5.0;
+                }
+
+                // Keep the angle bounded instead of letting it grow forever.
+                if (headAngle >= 360.0)
+                {
+                    headAngle -= 360.0;
+                }
+
+                if (headAngle <= -360.0)
+                {
+                    headAngle += 360.0;
                 }
             }
-            
-            XFlush(display);
         }
-        else if (event.type == KeyPress)
+
+        // Clear the previous frame before drawing the next one.
+        XClearWindow(display, window);
+
+        // --------------------
+        // Draw coordinate axes
+        // --------------------
+
+        Point3D xStart = {-10, 0, 0};
+        Point3D xEnd   = {10, 0, 0};
+
+        Point3D yStart = {0, -10, 0};
+        Point3D yEnd   = {0, 10, 0};
+
+        Point3D zStart = {0, 0, -10};
+        Point3D zEnd   = {0, 0, 10};
+
+        Point2D xs = project_point(xStart, headAngle);
+        Point2D xe = project_point(xEnd, headAngle);
+
+        Point2D ys = project_point(yStart, headAngle);
+        Point2D ye = project_point(yEnd, headAngle);
+
+        Point2D zs = project_point(zStart, headAngle);
+        Point2D ze = project_point(zEnd, headAngle);
+
+        if (xs.visible && xe.visible)
         {
-            KeySym key = XLookupKeysym(&event.xkey, 0);
+            XDrawLine(display, window, gc, xs.x, xs.y, xe.x, xe.y);
+        }
 
-            if (key == XK_Escape)
-            {
-                running = false;
-            }
-        else if (key == XK_Left)
+        if (ys.visible && ye.visible)
         {
-            // Left arrow turns the viewer's head to the right.
-            headAngle -= 5.0;
-
-            if (headAngle >= 360.0)
-            {
-                headAngle -= 360.0;
-            }
-
-            if (headAngle <= -360.0)
-            {
-                headAngle += 360.0;
-            }
-
-            XClearArea(
-                display,
-                window,
-                0, 0,
-                SCREEN_WIDTH,
-                SCREEN_HEIGHT,
-                True
-            );
+            XDrawLine(display, window, gc, ys.x, ys.y, ye.x, ye.y);
         }
-        else if (key == XK_Right)
+
+        if (zs.visible && ze.visible)
         {
-            // Right arrow turns the viewer's head to the left.
-            headAngle += 5.0;
-
-            if (headAngle >= 360.0)
-            {
-                headAngle -= 360.0;
-            }
-
-            if (headAngle <= -360.0)
-            {
-                headAngle += 360.0;
-            }
-
-            XClearArea(
-                display,
-                window,
-                0, 0,
-                SCREEN_WIDTH,
-                SCREEN_HEIGHT,
-                True
-            );
+            XDrawLine(display, window, gc, zs.x, zs.y, ze.x, ze.y);
         }
+
+        // --------------------
+        // Draw rotating cube
+        // --------------------
+
+        Point2D projectedCube[CUBE_POINT_COUNT];
+
+        for (int i = 0; i < CUBE_POINT_COUNT; i++)
+        {
+            Point3D rotatedPoint = cube[i];
+
+            rotatedPoint = rotate_x(rotatedPoint, shapeAngle);
+            rotatedPoint = rotate_y(rotatedPoint, shapeAngle);
+
+
+            projectedCube[i] =
+                project_point(rotatedPoint, headAngle);
         }
+
+        for (int i = 0; i < CUBE_EDGE_COUNT; i++)
+        {
+            int start = cubeEdges[i][0];
+            int end = cubeEdges[i][1];
+
+            if (projectedCube[start].visible &&
+                projectedCube[end].visible)
+            {
+                XDrawLine(
+                    display,
+                    window,
+                    gc,
+                    projectedCube[start].x,
+                    projectedCube[start].y,
+                    projectedCube[end].x,
+                    projectedCube[end].y
+                );
+            }
+        }
+
+        XFlush(display);
+
+        // Advance the object's rotation for the next frame.
+        shapeAngle += 1.0;
+
+        if (shapeAngle >= 360.0)
+        {
+            shapeAngle -= 360.0;
+        }
+
+        // About 16.7 ms per frame gives approximately 60 frames per second.
+        usleep(16667);
     }
 
     XDestroyWindow(display, window);
