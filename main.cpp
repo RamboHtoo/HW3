@@ -4,6 +4,7 @@
 #include <cmath>
 #include <unistd.h>
 #include <vector>
+#include <chrono>
 
 using namespace std;
 
@@ -45,6 +46,9 @@ const double FOCAL_LENGTH = 700.0;
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
 
+
+// These starting angles aim the camera at the world origin even though
+// the camera itself is positioned above and to the side of the origin.
 const double CAMERA_YAW =
     atan2(CAMERA_X, CAMERA_Z) * 180.0 / M_PI;
 
@@ -300,6 +304,7 @@ int main()
     while (running)
     {
         // Process any keyboard/window events that are waiting.
+        auto frameStart = chrono::high_resolution_clock::now();
         while (XPending(display) > 0)
         {
             XEvent event;
@@ -315,10 +320,13 @@ int main()
                 }
                 else if (key == XK_Left)
                 {
+                    // The demonstrated controls are from the viewer's perspective:
+                    // left arrow turns the viewer's head to the right.
                     headAngle -= 5.0;
                 }
                 else if (key == XK_Right)
                 {
+                    // Right arrow turns the viewer's head to the left.
                     headAngle += 5.0;
                 }
                 else if (key == XK_s || key == XK_S)
@@ -351,9 +359,7 @@ int main()
         // Clear the previous frame before drawing the next one.
         XClearWindow(display, window);
 
-        // --------------------
-        // Draw coordinate axes
-        // --------------------
+        // Draw coordinate axes.
 
         if (showAxes)
         {
@@ -394,9 +400,7 @@ int main()
             }
         }
 
-        // --------------------
-        // Draw the currently selected rotating shape
-        // --------------------
+        // Draw the currently selected rotating shape.
 
         Shape3D &shape = shapes[currentShape];
 
@@ -452,8 +456,22 @@ int main()
             shapeAngle -= 360.0;
         }
 
-        // About 16.7 ms per frame gives approximately 60 frames per second.
-        usleep(16667);
+        // Measure how much of this frame's 16.7 ms budget was already used.
+        auto frameEnd = chrono::high_resolution_clock::now();
+        
+        long long elapsed =
+            chrono::duration_cast<chrono::microseconds>(
+                frameEnd - frameStart
+            ).count();
+
+        const long long FRAME_TIME = 16667;
+
+        long long remaining = FRAME_TIME - elapsed;
+
+        if (remaining > 0)
+        {
+            usleep(remaining);
+        }
     }
 
     XDestroyWindow(display, window);
