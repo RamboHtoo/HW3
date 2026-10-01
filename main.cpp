@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cmath>
 #include <unistd.h>
+#include <vector>
 
 using namespace std;
 
@@ -21,6 +22,18 @@ struct Point2D
     int x;
     int y;
     bool visible;
+};
+
+struct Edge
+{
+    int start;
+    int end;
+};
+
+struct Shape3D
+{
+    vector<Point3D> points;
+    vector<Edge> edges;
 };
 
 const double CAMERA_X = 5.0;
@@ -63,19 +76,6 @@ Point3D rotate_y(Point3D p, double angle)
     rotated.x = p.x * cos(radians) - p.z * sin(radians);
     rotated.y = p.y;
     rotated.z = p.x * sin(radians) + p.z * cos(radians);
-
-    return rotated;
-}
-
-Point3D rotate_z(Point3D p, double angle)
-{
-    double radians = angle * M_PI / 180.0;
-
-    Point3D rotated;
-
-    rotated.x = p.x * cos(radians) - p.y * sin(radians);
-    rotated.y = p.x * sin(radians) + p.y * cos(radians);
-    rotated.z = p.z;
 
     return rotated;
 }
@@ -129,38 +129,75 @@ Point2D project_point(Point3D p, double headAngle)
     return screenPoint;
 }
 
-const int CUBE_POINT_COUNT = 8;
+Shape3D cube = {
+    {
+        {-2, -2, -2},
+        { 2, -2, -2},
+        { 2, -2,  2},
+        {-2, -2,  2},
 
-Point3D cube[CUBE_POINT_COUNT] = {
-    {-2, -2, -2},
-    { 2, -2, -2},
-    { 2, -2,  2},
-    {-2, -2,  2},
-
-    {-2,  2, -2},
-    { 2,  2, -2},
-    { 2,  2,  2},
-    {-2,  2,  2}
+        {-2,  2, -2},
+        { 2,  2, -2},
+        { 2,  2,  2},
+        {-2,  2,  2}
+    },
+    {
+        {0, 1}, {1, 2}, {2, 3}, {3, 0},
+        {4, 5}, {5, 6}, {6, 7}, {7, 4},
+        {0, 4}, {1, 5}, {2, 6}, {3, 7}
+    }
 };
 
-const int CUBE_EDGE_COUNT = 12;
+Shape3D pyramid = {
+    {
+        {-2, -2, -2},
+        { 2, -2, -2},
+        { 2, -2,  2},
+        {-2, -2,  2},
+        { 0,  2,  0}
+    },
+    {
+        {0, 1}, {1, 2}, {2, 3}, {3, 0},
 
-int cubeEdges[CUBE_EDGE_COUNT][2] = {
-    {0, 1},
-    {1, 2},
-    {2, 3},
-    {3, 0},
-
-    {4, 5},
-    {5, 6},
-    {6, 7},
-    {7, 4},
-
-    {0, 4},
-    {1, 5},
-    {2, 6},
-    {3, 7}
+        {0, 4},
+        {1, 4},
+        {2, 4},
+        {3, 4}
+    }
 };
+
+Shape3D triangularPrism = {
+    {
+        {-2, -2, -2},
+        { 2, -2, -2},
+        { 0,  2, -2},
+
+        {-2, -2,  2},
+        { 2, -2,  2},
+        { 0,  2,  2}
+    },
+    {
+        {0, 1},
+        {1, 2},
+        {2, 0},
+
+        {3, 4},
+        {4, 5},
+        {5, 3},
+
+        {0, 3},
+        {1, 4},
+        {2, 5}
+    }
+};
+
+Shape3D shapes[] = {
+    cube,
+    pyramid,
+    triangularPrism
+};
+
+const int SHAPE_COUNT = 3;
 
 int main()
 {
@@ -196,6 +233,8 @@ int main()
     bool running = true;
     double headAngle = 0.0;
     double shapeAngle = 0.0;
+    int currentShape = 0;
+    bool showAxes = true;
 
     while (running)
     {
@@ -234,6 +273,19 @@ int main()
                 {
                     headAngle += 360.0;
                 }
+                else if (key == XK_s || key == XK_S)
+                {
+                    currentShape++;
+
+                    if (currentShape >= SHAPE_COUNT)
+                    {
+                        currentShape = 0;
+                    }
+                }
+                else if (key == XK_x || key == XK_X)
+                {
+                    showAxes = !showAxes;
+                }
             }
         }
 
@@ -244,73 +296,77 @@ int main()
         // Draw coordinate axes
         // --------------------
 
-        Point3D xStart = {-10, 0, 0};
-        Point3D xEnd   = {10, 0, 0};
-
-        Point3D yStart = {0, -10, 0};
-        Point3D yEnd   = {0, 10, 0};
-
-        Point3D zStart = {0, 0, -10};
-        Point3D zEnd   = {0, 0, 10};
-
-        Point2D xs = project_point(xStart, headAngle);
-        Point2D xe = project_point(xEnd, headAngle);
-
-        Point2D ys = project_point(yStart, headAngle);
-        Point2D ye = project_point(yEnd, headAngle);
-
-        Point2D zs = project_point(zStart, headAngle);
-        Point2D ze = project_point(zEnd, headAngle);
-
-        if (xs.visible && xe.visible)
+        if (showAxes)
         {
-            XDrawLine(display, window, gc, xs.x, xs.y, xe.x, xe.y);
-        }
+            Point3D xStart = {-10, 0, 0};
+            Point3D xEnd   = {10, 0, 0};
 
-        if (ys.visible && ye.visible)
-        {
-            XDrawLine(display, window, gc, ys.x, ys.y, ye.x, ye.y);
-        }
+            Point3D yStart = {0, -10, 0};
+            Point3D yEnd   = {0, 10, 0};
 
-        if (zs.visible && ze.visible)
-        {
-            XDrawLine(display, window, gc, zs.x, zs.y, ze.x, ze.y);
+            Point3D zStart = {0, 0, -10};
+            Point3D zEnd   = {0, 0, 10};
+
+            Point2D xs = project_point(xStart, headAngle);
+            Point2D xe = project_point(xEnd, headAngle);
+
+            Point2D ys = project_point(yStart, headAngle);
+            Point2D ye = project_point(yEnd, headAngle);
+
+            Point2D zs = project_point(zStart, headAngle);
+            Point2D ze = project_point(zEnd, headAngle);
+
+            if (xs.visible && xe.visible)
+            {
+                XDrawLine(display, window, gc, xs.x, xs.y, xe.x, xe.y);
+            }
+
+            if (ys.visible && ye.visible)
+            {
+                XDrawLine(display, window, gc, ys.x, ys.y, ye.x, ye.y);
+            }
+
+            if (zs.visible && ze.visible)
+            {
+                XDrawLine(display, window, gc, zs.x, zs.y, ze.x, ze.y);
+            }
         }
 
         // --------------------
         // Draw rotating cube
         // --------------------
 
-        Point2D projectedCube[CUBE_POINT_COUNT];
+        Shape3D &shape = shapes[currentShape];
 
-        for (int i = 0; i < CUBE_POINT_COUNT; i++)
+        vector<Point2D> projectedPoints;
+
+        for (Point3D point : shape.points)
         {
-            Point3D rotatedPoint = cube[i];
+            Point3D rotatedPoint = point;
 
             rotatedPoint = rotate_x(rotatedPoint, shapeAngle);
             rotatedPoint = rotate_y(rotatedPoint, shapeAngle);
 
-
-            projectedCube[i] =
-                project_point(rotatedPoint, headAngle);
+            projectedPoints.push_back(
+                project_point(rotatedPoint, headAngle)
+            );
         }
 
-        for (int i = 0; i < CUBE_EDGE_COUNT; i++)
+        for (Edge edge : shape.edges)
         {
-            int start = cubeEdges[i][0];
-            int end = cubeEdges[i][1];
+            Point2D start = projectedPoints[edge.start];
+            Point2D end = projectedPoints[edge.end];
 
-            if (projectedCube[start].visible &&
-                projectedCube[end].visible)
+            if (start.visible && end.visible)
             {
                 XDrawLine(
                     display,
                     window,
                     gc,
-                    projectedCube[start].x,
-                    projectedCube[start].y,
-                    projectedCube[end].x,
-                    projectedCube[end].y
+                    start.x,
+                    start.y,
+                    end.x,
+                    end.y
                 );
             }
         }
