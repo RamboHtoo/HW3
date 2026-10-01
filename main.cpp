@@ -220,6 +220,28 @@ Shape3D shapes[] = {
 
 const int SHAPE_COUNT = 3;
 
+unsigned long get_color(Display *display, int screen, const char *name)
+{
+    Colormap colormap = DefaultColormap(display, screen);
+
+    XColor color;
+    XColor exactColor;
+
+    if (XAllocNamedColor(
+            display,
+            colormap,
+            name,
+            &color,
+            &exactColor))
+    {
+        return color.pixel;
+    }
+
+    // Fall back to black if X11 cannot allocate the requested color.
+    return BlackPixel(display, screen);
+}
+
+
 int main()
 {
     Display *display = XOpenDisplay(nullptr);
@@ -244,7 +266,25 @@ int main()
 
     GC gc = XCreateGC(display, window, 0, nullptr);
 
-    XSetForeground(display, gc, BlackPixel(display, screen));
+    unsigned long black =
+        BlackPixel(display, screen);
+
+    unsigned long red =
+        get_color(display, screen, "red");
+
+    unsigned long green =
+        get_color(display, screen, "green");
+
+    unsigned long blue =
+        get_color(display, screen, "blue");
+
+    unsigned long shapeColors[3] = {
+        red,
+        green,
+        blue
+    };
+
+    XSetForeground(display, gc, black);
     XSetLineAttributes(display, gc, 2, LineSolid, CapButt, JoinMiter);
 
     XSelectInput(display, window, ExposureMask | KeyPressMask);
@@ -275,24 +315,11 @@ int main()
                 }
                 else if (key == XK_Left)
                 {
-                    // Left arrow turns the viewer's head to the right.
                     headAngle -= 5.0;
                 }
                 else if (key == XK_Right)
                 {
-                    // Right arrow turns the viewer's head to the left.
                     headAngle += 5.0;
-                }
-
-                // Keep the angle bounded instead of letting it grow forever.
-                if (headAngle >= 360.0)
-                {
-                    headAngle -= 360.0;
-                }
-
-                if (headAngle <= -360.0)
-                {
-                    headAngle += 360.0;
                 }
                 else if (key == XK_s || key == XK_S)
                 {
@@ -307,6 +334,17 @@ int main()
                 {
                     showAxes = !showAxes;
                 }
+
+                // Normalize the viewing angle after processing the key.
+                if (headAngle >= 360.0)
+                {
+                    headAngle -= 360.0;
+                }
+
+                if (headAngle <= -360.0)
+                {
+                    headAngle += 360.0;
+                }
             }
         }
 
@@ -319,6 +357,9 @@ int main()
 
         if (showAxes)
         {
+
+            XSetForeground(display, gc, black);
+
             Point3D xStart = {-10, 0, 0};
             Point3D xEnd   = {10, 0, 0};
 
@@ -354,7 +395,7 @@ int main()
         }
 
         // --------------------
-        // Draw rotating cube
+        // Draw the currently selected rotating shape
         // --------------------
 
         Shape3D &shape = shapes[currentShape];
@@ -373,13 +414,22 @@ int main()
             );
         }
 
-        for (Edge edge : shape.edges)
+        for (size_t i = 0; i < shape.edges.size(); i++)
         {
+            Edge edge = shape.edges[i];
+
             Point2D start = projectedPoints[edge.start];
             Point2D end = projectedPoints[edge.end];
 
             if (start.visible && end.visible)
             {
+                // Keep each edge's color stable while the shape rotates.
+                XSetForeground(
+                    display,
+                    gc,
+                    shapeColors[i % 3]
+                );
+
                 XDrawLine(
                     display,
                     window,
