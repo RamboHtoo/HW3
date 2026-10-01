@@ -80,6 +80,19 @@ Point3D rotate_y(Point3D p, double angle)
     return rotated;
 }
 
+Point3D rotate_z(Point3D p, double angle)
+{
+    double radians = angle * M_PI / 180.0;
+
+    Point3D rotated;
+
+    rotated.x = p.x * cos(radians) - p.y * sin(radians);
+    rotated.y = p.x * sin(radians) + p.y * cos(radians);
+    rotated.z = p.z;
+
+    return rotated;
+}
+
 
 Point2D project_point(Point3D p, double headAngle)
 {
@@ -142,9 +155,24 @@ Shape3D cube = {
         {-2,  2,  2}
     },
     {
-        {0, 1}, {1, 2}, {2, 3}, {3, 0},
-        {4, 5}, {5, 6}, {6, 7}, {7, 4},
-        {0, 4}, {1, 5}, {2, 6}, {3, 7}
+        {0, 1},
+        {1, 2},
+        {2, 3},
+        {3, 0},
+
+        // Diagonals across the bottom square face.
+        {0, 2},
+        {3, 1},
+
+        {4, 5},
+        {5, 6},
+        {6, 7},
+        {7, 4},
+
+        {0, 4},
+        {1, 5},
+        {2, 6},
+        {3, 7}
     }
 };
 
@@ -168,26 +196,19 @@ Shape3D pyramid = {
 
 Shape3D triangularPrism = {
     {
-        {-2, -2, -2},
-        { 2, -2, -2},
-        { 0,  2, -2},
-
-        {-2, -2,  2},
-        { 2, -2,  2},
-        { 0,  2,  2}
+        { 0,  2,  0},   // top point
+        { 0, -2,  2},   // front base point
+        { 2, -2, -2},   // back-right base point
+        {-2, -2, -2}    // back-left base point
     },
     {
         {0, 1},
-        {1, 2},
-        {2, 0},
-
-        {3, 4},
-        {4, 5},
-        {5, 3},
-
+        {0, 2},
         {0, 3},
-        {1, 4},
-        {2, 5}
+
+        {1, 2},
+        {2, 3},
+        {3, 1}
     }
 };
 
@@ -344,8 +365,8 @@ int main()
         {
             Point3D rotatedPoint = point;
 
-            rotatedPoint = rotate_x(rotatedPoint, shapeAngle);
             rotatedPoint = rotate_y(rotatedPoint, shapeAngle);
+            rotatedPoint = rotate_z(rotatedPoint, shapeAngle);
 
             projectedPoints.push_back(
                 project_point(rotatedPoint, headAngle)
