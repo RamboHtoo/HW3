@@ -115,6 +115,39 @@ Point2D project_point(Point3D p, double headAngle)
     return screenPoint;
 }
 
+const int CUBE_POINT_COUNT = 8;
+
+Point3D cube[CUBE_POINT_COUNT] = {
+    {-2, -2, -2},
+    { 2, -2, -2},
+    { 2, -2,  2},
+    {-2, -2,  2},
+
+    {-2,  2, -2},
+    { 2,  2, -2},
+    { 2,  2,  2},
+    {-2,  2,  2}
+};
+
+const int CUBE_EDGE_COUNT = 12;
+
+int cubeEdges[CUBE_EDGE_COUNT][2] = {
+    {0, 1},
+    {1, 2},
+    {2, 3},
+    {3, 0},
+
+    {4, 5},
+    {5, 6},
+    {6, 7},
+    {7, 4},
+
+    {0, 4},
+    {1, 5},
+    {2, 6},
+    {3, 7}
+};
+
 int main()
 {
     Display *display = XOpenDisplay(nullptr);
@@ -190,6 +223,33 @@ int main()
                 XDrawLine(display, window, gc, zs.x, zs.y, ze.x, ze.y);
             }
 
+            Point2D projectedCube[CUBE_POINT_COUNT];
+
+            for (int i = 0; i < CUBE_POINT_COUNT; i++)
+            {
+                projectedCube[i] = project_point(cube[i], headAngle);
+            }
+
+            for (int i = 0; i < CUBE_EDGE_COUNT; i++)
+            {
+                int start = cubeEdges[i][0];
+                int end = cubeEdges[i][1];
+
+                if (projectedCube[start].visible &&
+                    projectedCube[end].visible)
+                {
+                    XDrawLine(
+                        display,
+                        window,
+                        gc,
+                        projectedCube[start].x,
+                        projectedCube[start].y,
+                        projectedCube[end].x,
+                        projectedCube[end].y
+                    );
+                }
+            }
+            
             XFlush(display);
         }
         else if (event.type == KeyPress)
